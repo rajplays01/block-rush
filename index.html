@@ -7,82 +7,64 @@
 <style>
 body {
     margin: 0;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    overflow: hidden;
     font-family: Arial;
+    color: white;
+    text-align: center;
     background: url("assets/bg.png") no-repeat center center/cover;
 }
 
 /* OVERLAY */
 #overlay {
-    position: absolute;
+    position: fixed;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+    z-index: 1;
 }
 
-/* MENU */
+/* TITLE */
+#title {
+    position: relative;
+    z-index: 2;
+    margin-top: 80px;
+    font-size: 50px;
+    font-weight: bold;
+}
+
+/* BUTTONS */
 #menu {
     position: relative;
-    text-align: center;
     z-index: 2;
+    margin-top: 40px;
 }
 
-/* LOGO */
-#logo {
-    width: 260px;
-    margin-bottom: 30px;
-}
-
-/* BUTTON */
-.btn {
+button {
     display: block;
-    width: 220px;
-    margin: 12px auto;
-    padding: 15px;
+    margin: 15px auto;
+    padding: 12px 25px;
     font-size: 18px;
-    color: white;
-    background: linear-gradient(#5c8a3a, #3d5c25);
-    border: 3px solid #2a3d1a;
     cursor: pointer;
+    background: gold;
+    border: none;
+    border-radius: 8px;
     transition: 0.2s;
 }
 
-/* HOVER */
-.btn:hover {
-    transform: scale(1.05);
-    background: linear-gradient(#6fa845, #4c7a2f);
+button:hover {
+    transform: scale(1.1);
 }
 
-/* DISABLED */
-.disabled {
-    background: gray;
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-/* SETTINGS PANEL */
-#settingsPanel {
-    display: none;
+/* FALLING BLOCKS */
+.falling-block {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.9);
-    padding: 25px;
-    border-radius: 10px;
-}
-
-#settingsPanel h2 {
-    margin-bottom: 10px;
-}
-
-.setting-btn {
-    margin-top: 10px;
-    padding: 10px;
-    width: 180px;
+    width: 50px;
+    height: 50px;
+    background-size: cover;
+    image-rendering: pixelated;
+    pointer-events: none;
+    z-index: 0;
 }
 </style>
 </head>
@@ -91,52 +73,59 @@ body {
 
 <div id="overlay"></div>
 
+<h1 id="title">Blocks Rush</h1>
+
 <div id="menu">
-    <img src="assets/logo.png" id="logo">
-
-    <button class="btn" onclick="goLevels()">Play</button>
-    <button class="btn" onclick="openSettings()">Settings</button>
-    <button class="btn disabled">Coming Soon</button>
-</div>
-
-<!-- ⚙️ SETTINGS -->
-<div id="settingsPanel">
-    <h2>Settings</h2>
-    <button class="setting-btn" onclick="toggleMusic()">Toggle Music</button>
-    <br>
-    <button class="setting-btn" onclick="closeSettings()">Close</button>
+    <button onclick="play()">▶ Play</button>
+    <button onclick="settings()">⚙ Settings</button>
+    <button disabled>🚧 Coming Soon</button>
 </div>
 
 <script>
+const blocks = ["tnt","emerald","diamond","grass","gold"];
 
-// 🎮 PLAY → LEVELS
-function goLevels(){
-    window.location.href = "levels.html";
+// 🎮 NAVIGATION
+function play(){
+    window.location.href = "biomes.html";
 }
 
-// ⚙️ SETTINGS OPEN
-function openSettings(){
-    document.getElementById("settingsPanel").style.display = "block";
+function settings(){
+    let current = localStorage.getItem("music") || "on";
+    let newState = current === "on" ? "off" : "on";
+    localStorage.setItem("music", newState);
+    alert("Music: " + newState);
 }
 
-// ❌ CLOSE SETTINGS
-function closeSettings(){
-    document.getElementById("settingsPanel").style.display = "none";
+// 🌧️ FALLING BLOCKS
+function spawnBlock(){
+    let block = document.createElement("div");
+    block.className = "falling-block";
+
+    let type = blocks[Math.random()*blocks.length | 0];
+    block.style.background = `url(assets/${type}.png) center/cover`;
+
+    let x = Math.random() * window.innerWidth;
+    block.style.left = x + "px";
+    block.style.top = "-60px";
+
+    document.body.appendChild(block);
+
+    let speed = 2 + Math.random() * 3;
+    let pos = -60;
+
+    let fall = setInterval(()=>{
+        pos += speed;
+        block.style.top = pos + "px";
+
+        if(pos > window.innerHeight){
+            clearInterval(fall);
+            block.remove();
+        }
+    }, 16);
 }
 
-// 🎵 MUSIC TOGGLE (basic)
-function toggleMusic(){
-    let musicState = localStorage.getItem("music") || "on";
-
-    if(musicState === "on"){
-        localStorage.setItem("music","off");
-        alert("Music OFF 🔇");
-    } else {
-        localStorage.setItem("music","on");
-        alert("Music ON 🎵");
-    }
-}
-
+// spawn continuously
+setInterval(spawnBlock, 400);
 </script>
 
 </body>
