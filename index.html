@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Blocks Rush</title>
+
+<style>
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial;
+    background: url("assets/bg.png") no-repeat center center/cover;
+}
+
+/* OVERLAY */
+#overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+}
+
+/* MENU */
+#menu {
+    position: relative;
+    text-align: center;
+    z-index: 2;
+}
+
+/* LOGO */
+#logo {
+    width: 260px;
+    margin-bottom: 30px;
+}
+
+/* BUTTON */
+.btn {
+    display: block;
+    width: 220px;
+    margin: 12px auto;
+    padding: 15px;
+    font-size: 18px;
+    color: white;
+    background: linear-gradient(#5c8a3a, #3d5c25);
+    border: 3px solid #2a3d1a;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+/* HOVER */
+.btn:hover {
+    transform: scale(1.05);
+    background: linear-gradient(#6fa845, #4c7a2f);
+}
+
+/* DISABLED */
+.disabled {
+    background: gray;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* SETTINGS PANEL */
+#settingsPanel {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.9);
+    padding: 25px;
+    border-radius: 10px;
+}
+
+#settingsPanel h2 {
+    margin-bottom: 10px;
+}
+
+.setting-btn {
+    margin-top: 10px;
+    padding: 10px;
+    width: 180px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="overlay"></div>
+
+<div id="menu">
+    <img src="assets/logo.png" id="logo">
+
+    <button class="btn" onclick="goLevels()">Play</button>
+    <button class="btn" onclick="openSettings()">Settings</button>
+    <button class="btn disabled">Coming Soon</button>
+</div>
+
+<!-- ⚙️ SETTINGS -->
+<div id="settingsPanel">
+    <h2>Settings</h2>
+    <button class="setting-btn" onclick="toggleMusic()">Toggle Music</button>
+    <br>
+    <button class="setting-btn" onclick="closeSettings()">Close</button>
+</div>
+
+<script>
+
+// 🎮 PLAY → LEVELS
+function goLevels(){
+    window.location.href = "levels.html";
+}
+
+// ⚙️ SETTINGS OPEN
+function openSettings(){
+    document.getElementById("settingsPanel").style.display = "block";
+}
+
+// ❌ CLOSE SETTINGS
+function closeSettings(){
+    document.getElementById("settingsPanel").style.display = "none";
+}
+
+// 🎵 MUSIC TOGGLE (basic)
+function toggleMusic(){
+    let musicState = localStorage.getItem("music") || "on";
+
+    if(musicState === "on"){
+        localStorage.setItem("music","off");
+        alert("Music OFF 🔇");
+    } else {
+        localStorage.setItem("music","on");
+        alert("Music ON 🎵");
+    }
+}
+
+</script>
+
+</body>
+</html>

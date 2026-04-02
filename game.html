@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Blocks Rush</title>
+
+<style>
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: Arial;
+    color: white;
+    background: url("assets/bg.png") no-repeat center center/cover;
+    padding-top: 20px;
+}
+
+#overlay {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    z-index: -1;
+}
+
+#logo {
+    width: 160px;
+    margin-bottom: 5px;
+}
+
+#topbar {
+    display: flex;
+    gap: 20px;
+    font-size: 16px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+#targets {
+    color: gold;
+}
+
+#board {
+    position: relative;
+    width: 520px;
+    height: 520px;
+}
+
+.block {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+    transition: transform 0.25s ease, opacity 0.2s;
+    image-rendering: pixelated;
+    border: 2px solid rgba(0,0,0,0.4);
+}
+
+#tnt {
+    position: absolute;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    z-index: 20;
+}
+
+#gameover {
+    position: absolute;
+    background: rgba(0,0,0,0.9);
+    padding: 25px;
+    border-radius: 10px;
+    display: none;
+    text-align: center;
+    z-index: 30;
+}
+</style>
+</head>
+
+<body>
+
+<div id="overlay"></div>
+
+<img src="assets/logo.png" id="logo">
+
+<div id="topbar">
+    <div id="level"></div>
+    <div id="timer"></div>
+    <div id="targets"></div>
+</div>
+
+<div id="board"></div>
+
+<div id="tnt">
+    <img src="assets/tnt.gif" width="120">
+</div>
+
+<div id="gameover">
+    <h2 id="resultText"></h2>
+    <p id="starsText"></p>
+    <button onclick="goLevels()">Back to Levels</button>
+</div>
+
+<audio id="bgMusic" src="assets/bg-music.mp4"></audio>
+
+<script>
+const board = document.getElementById("board");
+const timerDisplay = document.getElementById("timer");
+const targetsUI = document.getElementById("targets");
+const resultText = document.getElementById("resultText");
+const starsText = document.getElementById("starsText");
+
+const blocks = ["tnt","emerald","diamond","grass","gold"];
+
+let grid = [];
+let selectedBlock = null;
+
+let timeLeft = 60;
+let gameActive = true;
+
+// 🎮 LEVEL
+let level = Number(localStorage.getItem("selectedLevel")) || 1;
+document.getElementById("level").innerText = "Level: " + level;
+
+// 🎯 LEVEL DATA
+let levelData = {
+    1: { grass: 10, tnt: 8 },
+    2: { grass: 15, tnt: 10, diamond: 5 },
+    3: { grass: 20, tnt: 12, diamond: 8, emerald: 5 }
+};
+
+// 🎯 TARGETS
+let targets = { grass:0,tnt:0,diamond:0,emerald:0,gold:0 };
+Object.assign(targets, levelData[level]);
+
+// 🎵 MUSIC (RESPECT SETTINGS)
+document.addEventListener("click", () => {
+    let musicState = localStorage.getItem("music") || "on";
+    if(musicState === "on"){
+        let music = document.getElementById("bgMusic");
+        music.currentTime = 60;
+        music.volume = 0.3;
+        music.play();
+    }
+}, { once: true });
+
+// CREATE BOARD
+function createBoard(){
+    board.innerHTML="";
+
+    for(let r=0;r<8;r++){
+        grid[r]=[];
+
+        for(let c=0;c<8;c++){
+            let block;
+
+            do {
+                block = blocks[Math.random()*blocks.length|0];
+            } while (
+                (c>=2 && grid[r][c-1]?.type===block && grid[r][c-2]?.type===block) ||
+                (r>=2 && grid[r-1][c]?.type===block && grid[r-2][c]?.type===block)
+            );
+
+            grid[r][c]={type:block};
+
+            let el=document.createElement("div");
+            el.classList.add("block");
+            el.dataset.row=r;
+            el.dataset.col=c;
+            el.onclick=()=>handleClick(el);
+
+            board.appendChild(el);
+        }
+    }
+
+    updateBoard();
+    updateTargetsUI();
+}
+
+// CLICK
+function handleClick(el){
+    if(!gameActive) return;
+
+    let r=+el.dataset.row;
+    let c=+el.dataset.col;
+
+    if(!selectedBlock){
+        selectedBlock=el;
+        el.style.outline="3px solid white";
+    } else {
+        let r1=+selectedBlock.dataset.row;
+        let c1=+selectedBlock.dataset.col;
+
+        if(Math.abs(r1-r)+Math.abs(c1-c)===1){
+            swapBlocks(r1,c1,r,c);
+        }
+
+        selectedBlock.style.outline="none";
+        selectedBlock=null;
+    }
+}
+
+// SWAP
+function swapBlocks(r1,c1,r2,c2){
+    [grid[r1][c1],grid[r2][c2]]=[grid[r2][c2],grid[r1][c1]];
+    updateBoard();
+
+    setTimeout(()=>{
+        if(findMatches().length){
+            processMatches();
+        } else {
+            [grid[r1][c1],grid[r2][c2]]=[grid[r2][c2],grid[r1][c1]];
+            updateBoard();
+        }
+    },200);
+}
+
+// MATCH
+function findMatches(){
+    let matches=[];
+
+    for(let r=0;r<8;r++){
+        for(let c=0;c<6;c++){
+            let t=grid[r][c].type;
+            if(t && grid[r][c+1].type===t && grid[r][c+2].type===t){
+                matches.push([[r,c],[r,c+1],[r,c+2]]);
+            }
+        }
+    }
+
+    for(let c=0;c<8;c++){
+        for(let r=0;r<6;r++){
+            let t=grid[r][c].type;
+            if(t && grid[r+1][c].type===t && grid[r+2][c].type===t){
+                matches.push([[r,c],[r+1,c],[r+2,c]]);
+            }
+        }
+    }
+
+    return matches;
+}
+
+// PROCESS
+function processMatches(){
+    let matches=findMatches();
+    if(!matches.length) return;
+
+    matches.forEach(group=>{
+        group.forEach(([r,c])=>{
+            let type = grid[r][c]?.type;
+
+            if(targets[type] > 0){
+                targets[type]--;
+            }
+
+            grid[r][c]=null;
+        });
+    });
+
+    updateTargetsUI();
+    updateBoard();
+
+    if(checkWin()){
+        handleWin();
+        return;
+    }
+
+    setTimeout(()=>{
+        applyGravity();
+        updateBoard();
+        setTimeout(processMatches,200);
+    },200);
+}
+
+// WIN
+function handleWin(){
+    gameActive=false;
+
+    let stars = 1;
+    if(timeLeft > 40) stars = 3;
+    else if(timeLeft > 20) stars = 2;
+
+    starsText.innerText = "⭐".repeat(stars);
+    resultText.innerText = "Level Complete 🎉";
+
+    let prev = localStorage.getItem("level"+level) || 0;
+    if(stars > prev){
+        localStorage.setItem("level"+level, stars);
+    }
+
+    let unlocked = localStorage.getItem("unlockedLevel") || 1;
+    if(level >= unlocked){
+        localStorage.setItem("unlockedLevel", level + 1);
+    }
+
+    document.getElementById("gameover").style.display="block";
+}
+
+// CHECK WIN
+function checkWin(){
+    return Object.values(targets).every(v => v === 0);
+}
+
+// TARGET UI
+function updateTargetsUI(){
+    let text="";
+    for(let key in targets){
+        if(targets[key] > 0){
+            text += key + ": " + targets[key] + "  ";
+        }
+    }
+    targetsUI.innerText = text;
+}
+
+// GRAVITY
+function applyGravity(){
+    for(let c=0;c<8;c++){
+        let empty=7;
+
+        for(let r=7;r>=0;r--){
+            if(grid[r][c]){
+                grid[empty][c]=grid[r][c];
+                if(empty!==r) grid[r][c]=null;
+                empty--;
+            }
+        }
+
+        for(let r=empty;r>=0;r--){
+            grid[r][c]={type:blocks[Math.random()*5|0]};
+        }
+    }
+}
+
+// UPDATE
+function updateBoard(){
+    document.querySelectorAll(".block").forEach(b=>{
+        let r=b.dataset.row;
+        let c=b.dataset.col;
+        let cell=grid[r][c];
+
+        b.style.opacity=cell?1:0;
+
+        if(cell){
+            b.style.background = `url(assets/${cell.type}.png) center/cover`;
+        }
+
+        b.style.transform=`translate(${c*65}px,${r*65}px)`;
+    });
+}
+
+// LOSE
+function startTNTAnimation(){
+    let tnt = document.getElementById("tnt");
+    tnt.style.display="block";
+
+    let pos=-120;
+
+    let fall=setInterval(()=>{
+        pos+=12;
+        tnt.style.top=pos+"px";
+
+        if(pos>=300){
+            clearInterval(fall);
+            setTimeout(()=>{
+                resultText.innerText="Game Over 💣";
+                starsText.innerText="";
+                document.getElementById("gameover").style.display="block";
+            },600);
+        }
+    },20);
+}
+
+// TIMER
+function startTimer(){
+    setInterval(()=>{
+        if(!gameActive) return;
+
+        timeLeft--;
+        timerDisplay.innerText="Time: "+timeLeft;
+
+        if(timeLeft<=0){
+            gameActive=false;
+            startTNTAnimation();
+        }
+    },1000);
+}
+
+// BACK
+function goLevels(){
+    window.location.href = "levels.html";
+}
+
+// START
+createBoard();
+startTimer();
+</script>
+
+</body>
+</html>
