@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Biomes - Blocks Rush</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial;
+    color: white;
+    text-align: center;
+    background: url("assets/bg.png") no-repeat center center/cover;
+}
+
+#overlay {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(5px);
+    z-index: -1;
+}
+
+h1 {
+    margin-top: 20px;
+}
+
+/* GRID */
+#biomeGrid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+    width: 80%;
+    margin: 40px auto;
+}
+
+/* BIOME CARD */
+.biome {
+    background: rgba(0,0,0,0.6);
+    padding: 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+    border: 2px solid transparent;
+}
+
+.biome:hover {
+    transform: scale(1.05);
+    border-color: gold;
+}
+
+/* LOCKED */
+.locked {
+    background: rgba(0,0,0,0.8);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.locked:hover {
+    transform: none;
+    border-color: transparent;
+}
+
+/* BACK BUTTON */
+#backBtn {
+    margin-top: 10px;
+    padding: 8px 15px;
+    cursor: pointer;
+    background: gold;
+    border: none;
+    border-radius: 6px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="overlay"></div>
+
+<h1>🌍 Select Biome</h1>
+
+<button id="backBtn" onclick="goHome()">⬅ Back</button>
+
+<div id="biomeGrid"></div>
+
+<script>
+const biomeNames = [
+    "Forest 🌿","Desert 🏜️","Snow ❄️","Nether 🔥","Ocean 🌊",
+    "Jungle 🌴","Cave 🕳️","Sky ☁️","Mountain ⛰️","Swamp 🐸",
+    "Volcano 🌋","Ice Cave 🧊","Dark Forest 🌑","Savanna 🌾","Mushroom 🍄",
+    "End 🌌","Crystal 💎","Ruins 🏛️","Underwater 🐠","Final Boss ⚡"
+];
+
+let grid = document.getElementById("biomeGrid");
+
+// GET UNLOCKED BIOME
+let unlockedBiome = Number(localStorage.getItem("unlockedBiome")) || 1;
+
+// CREATE BIOMES
+for(let i=1;i<=20;i++){
+    let div = document.createElement("div");
+    div.className = "biome";
+
+    div.innerHTML = `
+        <h3>${biomeNames[i-1]}</h3>
+        <p>Biome ${i}</p>
+    `;
+
+    if(i > unlockedBiome){
+        div.classList.add("locked");
+        div.innerHTML += "<p>🔒 Locked</p>";
+    } else {
+        div.onclick = () => selectBiome(i);
+    }
+
+    grid.appendChild(div);
+}
+
+// SELECT BIOME
+function selectBiome(num){
+    localStorage.setItem("selectedBiome", num);
+    localStorage.setItem("unlockedLevel", 1);
+    window.location.href = "levels.html";
+}
+
+// BACK
+function goHome(){
+    window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>
