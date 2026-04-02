@@ -2,90 +2,79 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Select Level - Blocks Rush</title>
+<title>Levels - Blocks Rush</title>
 
 <style>
 body {
     margin: 0;
-    height: 100vh;
     font-family: Arial;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    color: white;
+    text-align: center;
     background: url("assets/bg.png") no-repeat center center/cover;
 }
 
-/* DARK OVERLAY */
 #overlay {
-    position: absolute;
+    position: fixed;
     width: 100%;
     height: 100%;
     background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(5px);
+    z-index: -1;
 }
 
-/* CONTAINER */
-#container {
-    position: relative;
-    text-align: center;
-    z-index: 2;
-}
-
-/* TITLE */
 h1 {
-    color: white;
-    margin-bottom: 20px;
+    margin-top: 20px;
 }
 
-/* LEVEL GRID */
-#levels {
+/* GRID */
+#levelGrid {
     display: grid;
-    grid-template-columns: repeat(3, 120px);
-    gap: 20px;
-    justify-content: center;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
+    width: 80%;
+    margin: 30px auto;
 }
 
-/* LEVEL BOX */
+/* LEVEL CARD */
 .level {
-    text-align: center;
-}
-
-/* BUTTON */
-.level-btn {
-    padding: 20px;
-    font-size: 18px;
-    color: white;
-    background: linear-gradient(#5c8a3a, #3d5c25);
-    border: 3px solid #2a3d1a;
+    background: rgba(0,0,0,0.6);
+    padding: 15px;
+    border-radius: 10px;
     cursor: pointer;
     transition: 0.2s;
 }
 
-.level-btn:hover {
+.level:hover {
     transform: scale(1.05);
+    border: 2px solid gold;
 }
 
 /* LOCKED */
 .locked {
-    background: gray;
-    cursor: not-allowed;
+    background: rgba(0,0,0,0.8);
     opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.locked:hover {
+    transform: none;
+    border: none;
 }
 
 /* STARS */
 .stars {
-    margin-top: 5px;
-    font-size: 18px;
     color: gold;
+    margin-top: 5px;
 }
 
-/* BACK BUTTON */
-#back {
-    margin-top: 20px;
-    padding: 10px 20px;
-    background: #444;
-    color: white;
-    border: none;
+/* BACK */
+#backBtn {
+    margin-top: 10px;
+    padding: 8px 15px;
     cursor: pointer;
+    background: gold;
+    border: none;
+    border-radius: 6px;
 }
 </style>
 </head>
@@ -94,71 +83,57 @@ h1 {
 
 <div id="overlay"></div>
 
-<div id="container">
-    <h1>Select Level</h1>
+<h1 id="title">Levels</h1>
 
-    <div id="levels"></div>
+<button id="backBtn" onclick="goBiomes()">⬅ Back</button>
 
-    <button id="back" onclick="goBack()">⬅ Back</button>
-</div>
+<div id="levelGrid"></div>
 
 <script>
+const grid = document.getElementById("levelGrid");
 
-// 🎯 TOTAL LEVELS
-const TOTAL_LEVELS = 6;
+// 🌍 CURRENT BIOME
+let biome = Number(localStorage.getItem("selectedBiome")) || 1;
+document.getElementById("title").innerText = "Biome " + biome;
 
-// 🔓 GET UNLOCKED LEVEL
-let unlockedLevel = localStorage.getItem("unlockedLevel") || 1;
+// 🔓 UNLOCKED LEVEL (PER BIOME)
+let unlockedLevel = Number(localStorage.getItem("biome"+biome+"_unlocked")) || 1;
 
-// 🎮 CREATE LEVEL BUTTONS
-function createLevels(){
-    const levelsDiv = document.getElementById("levels");
+// CREATE LEVELS
+for(let i=1;i<=20;i++){
+    let div = document.createElement("div");
+    div.className = "level";
 
-    for(let i=1;i<=TOTAL_LEVELS;i++){
+    // ⭐ STARS
+    let stars = Number(localStorage.getItem(`biome${biome}_level${i}`)) || 0;
+    let starText = "⭐".repeat(stars);
 
-        let wrapper = document.createElement("div");
-        wrapper.classList.add("level");
+    div.innerHTML = `
+        <h3>Level ${i}</h3>
+        <div class="stars">${starText}</div>
+    `;
 
-        let btn = document.createElement("button");
-        btn.innerText = i;
-
-        // LOCK SYSTEM
-        if(i > unlockedLevel){
-            btn.classList.add("level-btn","locked");
-            btn.innerText = i + " 🔒";
-        } else {
-            btn.classList.add("level-btn");
-            btn.onclick = () => startLevel(i);
-        }
-
-        // ⭐ STARS
-        let starsDiv = document.createElement("div");
-        starsDiv.classList.add("stars");
-
-        let stars = localStorage.getItem("level"+i) || 0;
-        starsDiv.innerText = "⭐".repeat(stars);
-
-        wrapper.appendChild(btn);
-        wrapper.appendChild(starsDiv);
-
-        levelsDiv.appendChild(wrapper);
+    // 🔒 LOCK SYSTEM
+    if(i > unlockedLevel){
+        div.classList.add("locked");
+        div.innerHTML += "<p>🔒 Locked</p>";
+    } else {
+        div.onclick = () => startLevel(i);
     }
+
+    grid.appendChild(div);
 }
 
-// 🎮 START LEVEL
+// ▶ START LEVEL
 function startLevel(level){
     localStorage.setItem("selectedLevel", level);
     window.location.href = "game.html";
 }
 
 // 🔙 BACK
-function goBack(){
-    window.location.href = "index.html";
+function goBiomes(){
+    window.location.href = "biomes.html";
 }
-
-// INIT
-createLevels();
-
 </script>
 
 </body>
