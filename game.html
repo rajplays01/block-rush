@@ -7,13 +7,9 @@
 <style>
 body {
     margin: 0;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     font-family: Arial;
     color: white;
-    padding-top: 20px;
+    text-align: center;
     background: url("assets/bg.png") no-repeat center center/cover;
 }
 
@@ -26,44 +22,41 @@ body {
 }
 
 #topbar {
+    margin-top: 10px;
     display: flex;
+    justify-content: center;
     gap: 20px;
-    margin-bottom: 10px;
 }
 
 #board {
     position: relative;
     width: 520px;
     height: 520px;
+    margin: 20px auto;
 }
 
 .block {
     position: absolute;
     width: 60px;
     height: 60px;
-    cursor: pointer;
     image-rendering: pixelated;
     border: 2px solid rgba(0,0,0,0.4);
-    transition: transform 0.25s ease, opacity 0.2s;
+    cursor: pointer;
+    transition: transform 0.25s;
 }
 
 .block:hover {
     transform: scale(1.1);
 }
 
-@keyframes pop {
-    to {
-        transform: scale(0);
-        opacity: 0;
-    }
-}
-
 #gameover {
-    position: absolute;
-    background: rgba(0,0,0,0.9);
-    padding: 20px;
-    border-radius: 10px;
     display: none;
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: black;
+    padding: 20px;
 }
 </style>
 </head>
@@ -75,7 +68,9 @@ body {
 <h2 id="levelInfo"></h2>
 
 <div id="topbar">
-    <div id="timer"></div>
+    <div id="score">Score: 0</div>
+    <div id="target">Target: 100</div>
+    <div id="timer">Time: 60</div>
 </div>
 
 <div id="board"></div>
@@ -87,19 +82,42 @@ body {
 
 <script>
 const board = document.getElementById("board");
-const timerDisplay = document.getElementById("timer");
 
 const blocks = ["tnt","emerald","diamond","grass","gold"];
 
 let grid = [];
 let selectedBlock = null;
+
+let score = 0;
+let target = 100;
 let timeLeft = 60;
 let gameActive = true;
 
-let biome = Number(localStorage.getItem("selectedBiome")) || 1;
-let level = Number(localStorage.getItem("selectedLevel")) || 1;
+// 🎵 MUSIC
+const music = new Audio("assets/bg-music.mp3");
+let started = false;
+let startTime = 63;
 
-document.getElementById("levelInfo").innerText = "Biome " + biome + " - Level " + level;
+document.addEventListener("click", ()=>{
+    if(!started){
+        music.currentTime = startTime;
+        music.volume = 0.3;
+        music.play();
+        started = true;
+    }
+});
+
+music.addEventListener("timeupdate", ()=>{
+    if(music.currentTime >= music.duration - 0.2){
+        music.currentTime = startTime;
+        music.play();
+    }
+});
+
+// LEVEL INFO
+let biome = localStorage.getItem("selectedBiome") || 1;
+let level = localStorage.getItem("selectedLevel") || 1;
+document.getElementById("levelInfo").innerText = "Biome "+biome+" - Level "+level;
 
 // CREATE BOARD
 function createBoard(){
@@ -109,7 +127,14 @@ function createBoard(){
         grid[r]=[];
 
         for(let c=0;c<8;c++){
-            let type = blocks[Math.random()*blocks.length|0];
+            let type;
+
+            do {
+                type = blocks[Math.random()*blocks.length|0];
+            } while (
+                (c>=2 && grid[r][c-1]?.type===type && grid[r][c-2]?.type===type) ||
+                (r>=2 && grid[r-1][c]?.type===type && grid[r-2][c]?.type===type)
+            );
 
             grid[r][c]={type};
 
@@ -155,11 +180,10 @@ function swap(r1,c1,r2,c2){
     updateBoard();
 
     setTimeout(()=>{
-        let m = findMatches();
+        let m=findMatches();
         if(m.length){
             processMatches();
         } else {
-            // swap back
             [grid[r1][c1],grid[r2][c2]]=[grid[r2][c2],grid[r1][c1]];
             updateBoard();
         }
@@ -168,13 +192,13 @@ function swap(r1,c1,r2,c2){
 
 // FIND MATCHES
 function findMatches(){
-    let m=[];
+    let matches=[];
 
     for(let r=0;r<8;r++){
         for(let c=0;c<6;c++){
             let t=grid[r][c]?.type;
             if(t && grid[r][c+1]?.type===t && grid[r][c+2]?.type===t){
-                m.push([[r,c],[r,c+1],[r,c+2]]);
+                matches.push([[r,c],[r,c+1],[r,c+2]]);
             }
         }
     }
@@ -183,12 +207,12 @@ function findMatches(){
         for(let r=0;r<6;r++){
             let t=grid[r][c]?.type;
             if(t && grid[r+1][c]?.type===t && grid[r+2][c]?.type===t){
-                m.push([[r,c],[r+1,c],[r+2,c]]);
+                matches.push([[r,c],[r+1,c],[r+2,c]]);
             }
         }
     }
 
-    return m;
+    return matches;
 }
 
 // PROCESS MATCHES
@@ -196,36 +220,49 @@ function processMatches(){
     let matches = findMatches();
     if(!matches.length) return;
 
+    let unique = new Set();
+
     matches.forEach(group=>{
         group.forEach(([r,c])=>{
-            let el = document.querySelector(`.block[data-row="${r}"][data-col="${c}"]`);
-            if(el) el.style.animation="pop 0.3s forwards";
-
-            grid[r][c]=null;
+            unique.add(r+"-"+c);
         });
     });
+
+    unique.forEach(key=>{
+        let [r,c] = key.split("-").map(Number);
+        grid[r][c]=null;
+    });
+
+    score += unique.size * 10;
+    document.getElementById("score").innerText = "Score: " + score;
+
+    // WIN
+    if(score >= target){
+        gameActive=false;
+        alert("LEVEL COMPLETE 🔥");
+        return;
+    }
 
     setTimeout(()=>{
         applyGravity();
         updateBoard();
         setTimeout(processMatches,200);
-    },300);
+    },200);
 }
 
-// GRAVITY + NEW BLOCKS
+// GRAVITY
 function applyGravity(){
     for(let c=0;c<8;c++){
-
-        let column=[];
+        let col=[];
 
         for(let r=0;r<8;r++){
-            if(grid[r][c]) column.push(grid[r][c]);
+            if(grid[r][c]) col.push(grid[r][c]);
         }
 
         for(let r=7;r>=0;r--){
-            grid[r][c] = column.pop() || {
+            grid[r][c] = col.pop() || {
                 type: blocks[Math.random()*blocks.length|0],
-                isNew: true
+                new:true
             };
         }
     }
@@ -246,39 +283,33 @@ function updateBoard(){
         b.style.opacity=1;
         b.style.background=`url(assets/${cell.type}.png) center/cover`;
 
-        // NEW BLOCK FALL ANIMATION
-        if(cell.isNew){
-            b.style.transform=`translate(${c*65}px, -80px)`;
-
+        if(cell.new){
+            b.style.transform=`translate(${c*65}px,-80px)`;
             setTimeout(()=>{
-                b.style.transform=`translate(${c*65}px, ${r*65}px)`;
+                b.style.transform=`translate(${c*65}px,${r*65}px)`;
             },10);
-
-            delete cell.isNew;
+            delete cell.new;
         } else {
-            b.style.transform=`translate(${c*65}px, ${r*65}px)`;
+            b.style.transform=`translate(${c*65}px,${r*65}px)`;
         }
     });
 }
 
 // TIMER
-function startTimer(){
-    setInterval(()=>{
-        if(!gameActive) return;
+setInterval(()=>{
+    if(!gameActive) return;
 
-        timeLeft--;
-        timerDisplay.innerText="Time: "+timeLeft;
+    timeLeft--;
+    document.getElementById("timer").innerText="Time: "+timeLeft;
 
-        if(timeLeft<=0){
-            gameActive=false;
-            document.getElementById("gameover").style.display="block";
-        }
-    },1000);
-}
+    if(timeLeft<=0){
+        gameActive=false;
+        document.getElementById("gameover").style.display="block";
+    }
+},1000);
 
 // START
 createBoard();
-startTimer();
 </script>
 
 </body>
