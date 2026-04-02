@@ -23,9 +23,6 @@ body {
 
 #topbar {
     margin-top: 10px;
-    display: flex;
-    justify-content: center;
-    gap: 20px;
 }
 
 #board {
@@ -68,8 +65,7 @@ body {
 <h2 id="levelInfo"></h2>
 
 <div id="topbar">
-    <div id="score">Score: 0</div>
-    <div id="target">Target: 100</div>
+    <div id="goals"></div>
     <div id="timer">Time: 60</div>
 </div>
 
@@ -82,16 +78,18 @@ body {
 
 <script>
 const board = document.getElementById("board");
-
 const blocks = ["tnt","emerald","diamond","grass","gold"];
 
 let grid = [];
 let selectedBlock = null;
 
-let score = 0;
-let target = 100;
 let timeLeft = 60;
 let gameActive = true;
+
+// 🎯 GOAL SYSTEM
+let goalTypes = [];
+let goalProgress = {};
+let goalTarget = {};
 
 // 🎵 MUSIC
 const music = new Audio("assets/bg-music.mp3");
@@ -119,7 +117,32 @@ let biome = localStorage.getItem("selectedBiome") || 1;
 let level = localStorage.getItem("selectedLevel") || 1;
 document.getElementById("levelInfo").innerText = "Biome "+biome+" - Level "+level;
 
-// CREATE BOARD
+// 🎲 GENERATE GOALS
+function generateGoals(){
+    let types = [...blocks].sort(()=>Math.random()-0.5).slice(0,2);
+
+    goalTypes = types;
+
+    types.forEach(t=>{
+        goalTarget[t] = 6 + Math.floor(Math.random()*6);
+        goalProgress[t] = 0;
+    });
+
+    updateGoalUI();
+}
+
+// 🖥️ UPDATE GOAL UI
+function updateGoalUI(){
+    let text = "";
+
+    goalTypes.forEach(t=>{
+        text += `${t}: ${goalProgress[t]}/${goalTarget[t]} &nbsp;&nbsp;`;
+    });
+
+    document.getElementById("goals").innerHTML = text;
+}
+
+// CREATE BOARD (NO START MATCH)
 function createBoard(){
     board.innerHTML="";
 
@@ -215,7 +238,7 @@ function findMatches(){
     return matches;
 }
 
-// PROCESS MATCHES
+// PROCESS MATCHES (AUTO CASCADE)
 function processMatches(){
     let matches = findMatches();
     if(!matches.length) return;
@@ -230,27 +253,39 @@ function processMatches(){
 
     unique.forEach(key=>{
         let [r,c] = key.split("-").map(Number);
-        grid[r][c]=null;
+        let type = grid[r][c]?.type;
+
+        // 🎯 TRACK GOAL
+        if(goalProgress[type] !== undefined){
+            goalProgress[type]++;
+        }
+
+        grid[r][c] = null;
     });
 
-    score += unique.size * 10;
-    document.getElementById("score").innerText = "Score: " + score;
+    updateGoalUI();
 
-    // WIN
-    if(score >= target){
-        gameActive=false;
-        alert("LEVEL COMPLETE 🔥");
+    // 🏆 WIN CHECK
+    let completed = goalTypes.every(t => goalProgress[t] >= goalTarget[t]);
+
+    if(completed){
+        gameActive = false;
+        alert("LEVEL COMPLETE 🎉");
         return;
     }
 
     setTimeout(()=>{
         applyGravity();
         updateBoard();
-        setTimeout(processMatches,200);
+
+        setTimeout(()=>{
+            processMatches(); // 🔥 AUTO MATCH
+        },200);
+
     },200);
 }
 
-// GRAVITY
+// GRAVITY + NEW BLOCKS
 function applyGravity(){
     for(let c=0;c<8;c++){
         let col=[];
@@ -310,6 +345,7 @@ setInterval(()=>{
 
 // START
 createBoard();
+generateGoals();
 </script>
 
 </body>
