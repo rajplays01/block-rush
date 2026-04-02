@@ -46,6 +46,22 @@ body {
     transform: scale(1.1);
 }
 
+/* NEXT BUTTON */
+#nextBtn {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 15px 25px;
+    font-size: 18px;
+    background: green;
+    color: white;
+    border: none;
+    display: none;
+    cursor: pointer;
+}
+
+/* GAME OVER */
 #gameover {
     display: none;
     position: absolute;
@@ -71,13 +87,16 @@ body {
 
 <div id="board"></div>
 
+<button id="nextBtn" onclick="nextLevel()">NEXT ➡️</button>
+
 <div id="gameover">
     <h2>Game Over</h2>
-    <button onclick="location.href='levels.html'">Back</button>
+    <button onclick="location.reload()">Restart</button>
 </div>
 
 <script>
 const board = document.getElementById("board");
+
 const blocks = ["tnt","emerald","diamond","grass","gold"];
 
 let grid = [];
@@ -86,19 +105,20 @@ let selectedBlock = null;
 let timeLeft = 60;
 let gameActive = true;
 
-// 🎯 GOAL SYSTEM
+let level = 1;
+
+// 🎯 GOALS
 let goalTypes = [];
 let goalProgress = {};
 let goalTarget = {};
 
 // 🎵 MUSIC
-const music = new Audio("assets/bg-music.mp4");
+const music = new Audio("assets/bg-music.mp3");
 let started = false;
-let startTime = 63;
 
 document.addEventListener("click", ()=>{
     if(!started){
-        music.currentTime = startTime;
+        music.currentTime = 63;
         music.volume = 0.3;
         music.play();
         started = true;
@@ -107,23 +127,26 @@ document.addEventListener("click", ()=>{
 
 music.addEventListener("timeupdate", ()=>{
     if(music.currentTime >= music.duration - 0.2){
-        music.currentTime = startTime;
+        music.currentTime = 63;
         music.play();
     }
 });
 
-// LEVEL INFO
-let biome = localStorage.getItem("selectedBiome") || 1;
-let level = localStorage.getItem("selectedLevel") || 1;
-document.getElementById("levelInfo").innerText = "Biome "+biome+" - Level "+level;
+// UPDATE LEVEL TEXT
+function updateLevelText(){
+    document.getElementById("levelInfo").innerText = "Level " + level;
+}
 
-// 🎲 GENERATE GOALS
+// 🎲 RANDOM GOALS EVERY ROUND
 function generateGoals(){
+    goalTypes = [];
+    goalProgress = {};
+    goalTarget = {};
+
     let types = [...blocks].sort(()=>Math.random()-0.5).slice(0,2);
 
-    goalTypes = types;
-
     types.forEach(t=>{
+        goalTypes.push(t);
         goalTarget[t] = 6 + Math.floor(Math.random()*6);
         goalProgress[t] = 0;
     });
@@ -131,7 +154,7 @@ function generateGoals(){
     updateGoalUI();
 }
 
-// 🖥️ UPDATE GOAL UI
+// UPDATE UI
 function updateGoalUI(){
     let text = "";
 
@@ -142,7 +165,7 @@ function updateGoalUI(){
     document.getElementById("goals").innerHTML = text;
 }
 
-// CREATE BOARD (NO START MATCH)
+// CREATE BOARD
 function createBoard(){
     board.innerHTML="";
 
@@ -238,7 +261,7 @@ function findMatches(){
     return matches;
 }
 
-// PROCESS MATCHES (AUTO CASCADE)
+// PROCESS MATCHES
 function processMatches(){
     let matches = findMatches();
     if(!matches.length) return;
@@ -255,7 +278,6 @@ function processMatches(){
         let [r,c] = key.split("-").map(Number);
         let type = grid[r][c]?.type;
 
-        // 🎯 TRACK GOAL
         if(goalProgress[type] !== undefined){
             goalProgress[type]++;
         }
@@ -265,12 +287,12 @@ function processMatches(){
 
     updateGoalUI();
 
-    // 🏆 WIN CHECK
+    // 🎉 WIN
     let completed = goalTypes.every(t => goalProgress[t] >= goalTarget[t]);
 
     if(completed){
         gameActive = false;
-        alert("LEVEL COMPLETE 🎉");
+        document.getElementById("nextBtn").style.display = "block";
         return;
     }
 
@@ -278,14 +300,11 @@ function processMatches(){
         applyGravity();
         updateBoard();
 
-        setTimeout(()=>{
-            processMatches(); // 🔥 AUTO MATCH
-        },200);
-
+        setTimeout(processMatches,200);
     },200);
 }
 
-// GRAVITY + NEW BLOCKS
+// GRAVITY
 function applyGravity(){
     for(let c=0;c<8;c++){
         let col=[];
@@ -330,6 +349,19 @@ function updateBoard(){
     });
 }
 
+// NEXT LEVEL
+function nextLevel(){
+    level++;
+    timeLeft = 60;
+    gameActive = true;
+
+    document.getElementById("nextBtn").style.display = "none";
+
+    createBoard();
+    generateGoals();
+    updateLevelText();
+}
+
 // TIMER
 setInterval(()=>{
     if(!gameActive) return;
@@ -346,6 +378,7 @@ setInterval(()=>{
 // START
 createBoard();
 generateGoals();
+updateLevelText();
 </script>
 
 </body>
