@@ -94,7 +94,9 @@ body {
 <div id="menu">
     <img src="assets/logo.png" id="logo">
 
-    <button class="btn" onclick="goLevels()">Play</button>
+    <!-- ✅ NOW GOES TO BIOMES -->
+    <button class="btn" onclick="goBiomes()">Play</button>
+
     <button class="btn" onclick="openSettings()">Settings</button>
     <button class="btn disabled">Coming Soon</button>
 </div>
@@ -109,9 +111,9 @@ body {
 
 <script>
 
-// 🎮 PLAY → LEVELS
-function goLevels(){
-    window.location.href = "levels.html";
+// 🎮 PLAY → BIOMES (FIXED FLOW)
+function goBiomes(){
+    window.location.href = "biomes.html";
 }
 
 // ⚙️ SETTINGS OPEN
@@ -124,7 +126,7 @@ function closeSettings(){
     document.getElementById("settingsPanel").style.display = "none";
 }
 
-// 🎵 MUSIC TOGGLE (basic)
+// 🎵 MUSIC TOGGLE
 function toggleMusic(){
     let musicState = localStorage.getItem("music") || "on";
 
