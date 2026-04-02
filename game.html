@@ -13,10 +13,12 @@ body {
     align-items: center;
     font-family: Arial;
     color: white;
-    background: url("assets/bg.png") no-repeat center center/cover;
     padding-top: 20px;
+    background-size: cover;
+    background-position: center;
 }
 
+/* OVERLAY */
 #overlay {
     position: fixed;
     width: 100%;
@@ -26,24 +28,16 @@ body {
     z-index: -1;
 }
 
-#logo {
-    width: 160px;
-    margin-bottom: 5px;
-}
-
+/* UI */
+#logo { width: 150px; }
 #topbar {
     display: flex;
-    gap: 20px;
-    font-size: 16px;
+    gap: 15px;
     margin-bottom: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
 }
+#targets { color: gold; }
 
-#targets {
-    color: gold;
-}
-
+/* BOARD */
 #board {
     position: relative;
     width: 520px;
@@ -55,20 +49,50 @@ body {
     width: 60px;
     height: 60px;
     cursor: pointer;
-    transition: transform 0.25s ease, opacity 0.2s;
     image-rendering: pixelated;
     border: 2px solid rgba(0,0,0,0.4);
+    transition: transform 0.25s cubic-bezier(0.2,1.2,0.3,1), opacity 0.2s;
 }
 
+.block:hover {
+    transform: scale(1.1);
+    z-index: 5;
+}
+
+/* POP */
+@keyframes pop {
+    0% { transform: scale(1); }
+    100% { transform: scale(0); opacity: 0; }
+}
+
+/* SHAKE */
+@keyframes shake {
+    0% { transform: translate(0); }
+    50% { transform: translate(6px,-6px); }
+    100% { transform: translate(0); }
+}
+
+/* SCORE POP */
+.score-popup {
+    position: absolute;
+    color: yellow;
+    font-weight: bold;
+    animation: floatUp 1s forwards;
+}
+@keyframes floatUp {
+    to { transform: translateY(-40px); opacity: 0; }
+}
+
+/* TNT */
 #tnt {
     position: absolute;
     top: -120px;
     left: 50%;
     transform: translateX(-50%);
     display: none;
-    z-index: 20;
 }
 
+/* GAME OVER */
 #gameover {
     position: absolute;
     background: rgba(0,0,0,0.9);
@@ -76,7 +100,6 @@ body {
     border-radius: 10px;
     display: none;
     text-align: center;
-    z-index: 30;
 }
 </style>
 </head>
@@ -88,6 +111,7 @@ body {
 <img src="assets/logo.png" id="logo">
 
 <div id="topbar">
+    <div id="biome"></div>
     <div id="level"></div>
     <div id="timer"></div>
     <div id="targets"></div>
@@ -102,73 +126,63 @@ body {
 <div id="gameover">
     <h2 id="resultText"></h2>
     <p id="starsText"></p>
-    <button onclick="goLevels()">Back to Levels</button>
+    <button onclick="goLevels()">Back</button>
 </div>
-
-<audio id="bgMusic" src="assets/bg-music.mp4"></audio>
 
 <script>
 const board = document.getElementById("board");
 const timerDisplay = document.getElementById("timer");
 const targetsUI = document.getElementById("targets");
-const resultText = document.getElementById("resultText");
-const starsText = document.getElementById("starsText");
+
+let biome = Number(localStorage.getItem("selectedBiome")) || 1;
+let level = Number(localStorage.getItem("selectedLevel")) || 1;
+
+document.getElementById("biome").innerText = "Biome: " + biome;
+document.getElementById("level").innerText = "Level: " + level;
+
+// 🎨 BIOME BACKGROUNDS
+const biomeBG = {
+    1: "assets/bg.png",
+    2: "assets/desert.png",
+    3: "assets/snow.png",
+    4: "assets/nether.png"
+};
+
+document.body.style.backgroundImage = `url(${biomeBG[biome] || "assets/bg.png"})`;
 
 const blocks = ["tnt","emerald","diamond","grass","gold"];
 
 let grid = [];
 let selectedBlock = null;
-
 let timeLeft = 60;
 let gameActive = true;
 
-// 🎮 LEVEL
-let level = Number(localStorage.getItem("selectedLevel")) || 1;
-document.getElementById("level").innerText = "Level: " + level;
-
-// 🎯 LEVEL DATA
-let levelData = {
-    1: { grass: 10, tnt: 8 },
-    2: { grass: 15, tnt: 10, diamond: 5 },
-    3: { grass: 20, tnt: 12, diamond: 8, emerald: 5 }
+// 🎯 TARGET GENERATION (scales with level)
+let targets = {
+    grass: 5 + level*2,
+    tnt: 4 + level,
+    diamond: Math.floor(level/2)
 };
 
-// 🎯 TARGETS
-let targets = { grass:0,tnt:0,diamond:0,emerald:0,gold:0 };
-Object.assign(targets, levelData[level]);
-
-// 🎵 MUSIC (RESPECT SETTINGS)
-document.addEventListener("click", () => {
-    let musicState = localStorage.getItem("music") || "on";
-    if(musicState === "on"){
-        let music = document.getElementById("bgMusic");
-        music.currentTime = 60;
-        music.volume = 0.3;
-        music.play();
+function updateTargetsUI(){
+    let t="";
+    for(let k in targets){
+        if(targets[k]>0) t+=k+": "+targets[k]+" ";
     }
-}, { once: true });
+    targetsUI.innerText=t;
+}
 
 // CREATE BOARD
 function createBoard(){
     board.innerHTML="";
-
     for(let r=0;r<8;r++){
         grid[r]=[];
-
         for(let c=0;c<8;c++){
-            let block;
-
-            do {
-                block = blocks[Math.random()*blocks.length|0];
-            } while (
-                (c>=2 && grid[r][c-1]?.type===block && grid[r][c-2]?.type===block) ||
-                (r>=2 && grid[r-1][c]?.type===block && grid[r-2][c]?.type===block)
-            );
-
-            grid[r][c]={type:block};
+            let type=blocks[Math.random()*5|0];
+            grid[r][c]={type};
 
             let el=document.createElement("div");
-            el.classList.add("block");
+            el.className="block";
             el.dataset.row=r;
             el.dataset.col=c;
             el.onclick=()=>handleClick(el);
@@ -176,7 +190,6 @@ function createBoard(){
             board.appendChild(el);
         }
     }
-
     updateBoard();
     updateTargetsUI();
 }
@@ -210,38 +223,22 @@ function swapBlocks(r1,c1,r2,c2){
     updateBoard();
 
     setTimeout(()=>{
-        if(findMatches().length){
-            processMatches();
-        } else {
-            [grid[r1][c1],grid[r2][c2]]=[grid[r2][c2],grid[r1][c1]];
-            updateBoard();
-        }
+        processMatches();
     },200);
 }
 
 // MATCH
 function findMatches(){
-    let matches=[];
-
+    let m=[];
     for(let r=0;r<8;r++){
         for(let c=0;c<6;c++){
             let t=grid[r][c].type;
             if(t && grid[r][c+1].type===t && grid[r][c+2].type===t){
-                matches.push([[r,c],[r,c+1],[r,c+2]]);
+                m.push([[r,c],[r,c+1],[r,c+2]]);
             }
         }
     }
-
-    for(let c=0;c<8;c++){
-        for(let r=0;r<6;r++){
-            let t=grid[r][c].type;
-            if(t && grid[r+1][c].type===t && grid[r+2][c].type===t){
-                matches.push([[r,c],[r+1,c],[r+2,c]]);
-            }
-        }
-    }
-
-    return matches;
+    return m;
 }
 
 // PROCESS
@@ -251,10 +248,18 @@ function processMatches(){
 
     matches.forEach(group=>{
         group.forEach(([r,c])=>{
-            let type = grid[r][c]?.type;
+            let cell=grid[r][c];
+            if(!cell) return;
 
-            if(targets[type] > 0){
-                targets[type]--;
+            let el=document.querySelector(`.block[data-row="${r}"][data-col="${c}"]`);
+            if(el){
+                el.style.animation="pop 0.3s forwards";
+                let rect=el.getBoundingClientRect();
+                showScore(rect.left,rect.top,10);
+            }
+
+            if(targets[cell.type]>0){
+                targets[cell.type]--;
             }
 
             grid[r][c]=null;
@@ -262,7 +267,6 @@ function processMatches(){
     });
 
     updateTargetsUI();
-    updateBoard();
 
     if(checkWin()){
         handleWin();
@@ -271,66 +275,33 @@ function processMatches(){
 
     setTimeout(()=>{
         applyGravity();
+        fillEmpty();
         updateBoard();
         setTimeout(processMatches,200);
-    },200);
+    },300);
 }
 
-// WIN
-function handleWin(){
-    gameActive=false;
-
-    let stars = 1;
-    if(timeLeft > 40) stars = 3;
-    else if(timeLeft > 20) stars = 2;
-
-    starsText.innerText = "⭐".repeat(stars);
-    resultText.innerText = "Level Complete 🎉";
-
-    let prev = localStorage.getItem("level"+level) || 0;
-    if(stars > prev){
-        localStorage.setItem("level"+level, stars);
-    }
-
-    let unlocked = localStorage.getItem("unlockedLevel") || 1;
-    if(level >= unlocked){
-        localStorage.setItem("unlockedLevel", level + 1);
-    }
-
-    document.getElementById("gameover").style.display="block";
-}
-
-// CHECK WIN
-function checkWin(){
-    return Object.values(targets).every(v => v === 0);
-}
-
-// TARGET UI
-function updateTargetsUI(){
-    let text="";
-    for(let key in targets){
-        if(targets[key] > 0){
-            text += key + ": " + targets[key] + "  ";
+// FILL EMPTY (FIX)
+function fillEmpty(){
+    for(let r=0;r<8;r++){
+        for(let c=0;c<8;c++){
+            if(!grid[r][c]){
+                grid[r][c]={type:blocks[Math.random()*5|0]};
+            }
         }
     }
-    targetsUI.innerText = text;
 }
 
 // GRAVITY
 function applyGravity(){
     for(let c=0;c<8;c++){
         let empty=7;
-
         for(let r=7;r>=0;r--){
             if(grid[r][c]){
                 grid[empty][c]=grid[r][c];
                 if(empty!==r) grid[r][c]=null;
                 empty--;
             }
-        }
-
-        for(let r=empty;r>=0;r--){
-            grid[r][c]={type:blocks[Math.random()*5|0]};
         }
     }
 }
@@ -345,31 +316,75 @@ function updateBoard(){
         b.style.opacity=cell?1:0;
 
         if(cell){
-            b.style.background = `url(assets/${cell.type}.png) center/cover`;
+            b.style.background=`url(assets/${cell.type}.png) center/cover`;
         }
 
         b.style.transform=`translate(${c*65}px,${r*65}px)`;
     });
 }
 
-// LOSE
-function startTNTAnimation(){
-    let tnt = document.getElementById("tnt");
-    tnt.style.display="block";
+// WIN
+function handleWin(){
+    gameActive=false;
 
+    let stars = timeLeft>40?3:timeLeft>20?2:1;
+
+    document.getElementById("resultText").innerText="Level Complete 🎉";
+    document.getElementById("starsText").innerText="⭐".repeat(stars);
+
+    // SAVE ⭐
+    localStorage.setItem(`biome${biome}_level${level}`, stars);
+
+    // UNLOCK NEXT LEVEL
+    let unlocked = Number(localStorage.getItem("biome"+biome+"_unlocked")) || 1;
+    if(level+1 > unlocked && level < 20){
+        localStorage.setItem("biome"+biome+"_unlocked", level+1);
+    }
+
+    // UNLOCK NEXT BIOME
+    if(level === 20){
+        let ub = Number(localStorage.getItem("unlockedBiome")) || 1;
+        if(biome >= ub){
+            localStorage.setItem("unlockedBiome", biome+1);
+        }
+    }
+
+    document.getElementById("gameover").style.display="block";
+}
+
+// CHECK WIN
+function checkWin(){
+    return Object.values(targets).every(v=>v<=0);
+}
+
+// SCORE POP
+function showScore(x,y,val){
+    let el=document.createElement("div");
+    el.className="score-popup";
+    el.innerText="+"+val;
+    el.style.left=x+"px";
+    el.style.top=y+"px";
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1000);
+}
+
+// TNT LOSE
+function startTNT(){
+    let tnt=document.getElementById("tnt");
+    tnt.style.display="block";
     let pos=-120;
 
     let fall=setInterval(()=>{
-        pos+=12;
+        pos+=10;
         tnt.style.top=pos+"px";
 
-        if(pos>=300){
+        if(pos>300){
             clearInterval(fall);
+            document.body.style.animation="shake 0.3s";
             setTimeout(()=>{
-                resultText.innerText="Game Over 💣";
-                starsText.innerText="";
+                document.getElementById("resultText").innerText="Game Over 💣";
                 document.getElementById("gameover").style.display="block";
-            },600);
+            },500);
         }
     },20);
 }
@@ -384,14 +399,14 @@ function startTimer(){
 
         if(timeLeft<=0){
             gameActive=false;
-            startTNTAnimation();
+            startTNT();
         }
     },1000);
 }
 
 // BACK
 function goLevels(){
-    window.location.href = "levels.html";
+    window.location.href="levels.html";
 }
 
 // START
